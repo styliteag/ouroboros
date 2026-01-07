@@ -1,147 +1,222 @@
-name: Build
+name: Release Docker Build
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (optional, defaults to tag or pyouroboros/__init__.py)'
+        required: false
+        type: string
 
 jobs:
-  test:
-    name: Docker Test on ubuntu-latest
-    runs-on: ubuntu-latest
-    services:
-      registry:
-        image: registry:2
-        ports:
-          - 5000:5000
-    steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 1
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: amd64
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        version: latest
-        driver-opts: network=host
-    - name: Update Version String
-      run: |
-        sed -i -r 's/VERSION = "custom"/VERSION = "0.0+test"/' pyouroboros/__init__.py
-        echo $?\
-    - name: Build Docker
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: ./Dockerfile
-        platforms: linux/amd64
-        push: true
-        cache-from: type=gha,scope=main
-        cache-to: type=gha,mode=max,scope=main
-        tags: localhost:5000/tester/ouroboros:test
-    - name: Test with Docker
-      run: |
-        sudo mkdir -p /app/pyouroboros/hooks
-        docker run --rm --name ouroboros -v /var/run/docker.sock:/var/run/docker.sock localhost:5000/tester/ouroboros:test --run-once --dry-run --log-level debug
   build:
-    name: Docker Build on ubuntu-latest
-    runs-on: ubuntu-latest
-    needs: test
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-22.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
     steps:
-    - name: Check Credentials
-      id: check_credentials
-      env:
-        DOCKER_USER: ${{ secrets.DOCKER_USER }}
-        DOCKER_CLITOKEN: ${{ secrets.DOCKER_CLITOKEN }}
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Extract version
+      id: version
       run: |
-        if [ "${DOCKER_USER}" == "" ]; then
-          echo "Missing User"
-          echo "missingsecrets=yes" >> $GITHUB_OUTPUT
-        elif [ "${DOCKER_CLITOKEN}" == "" ]; then
-          echo "Missing Cli Token"
-          echo "missingsecrets=yes" >> $GITHUB_OUTPUT
+        # Extract version from tag or use provided version from workflow_dispatch
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          # Extract version from tag (e.g., v1.2.3 -> 1.2.3)
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG_NAME#v}
+        elif [ -n "${{ inputs.version }}" ]; then
+          VERSION="${{ inputs.version }}"
         else
-          echo "All secrets present"
-          echo "missingsecrets=no" >> $GITHUB_OUTPUT
+          # Fallback: try to read from pyouroboros/__init__.py
+          VERSION=$(grep 'VERSION = "' pyouroboros/__init__.py | sed 's/.*VERSION = "\([^"]*\)".*/\1/' || echo "custom")
+          # Remove 'v' prefix if present
+          VERSION=${VERSION#v}
         fi
-    - name: Checkout Repository
-      if: contains(steps.check_credentials.outputs.missingsecrets, 'no')
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 1
-    - name: Get Revision Variables
-      id: build_env
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+
+        # Extract major and minor versions for additional tags
+        IFS='.' read -r -a version_parts <<< "$VERSION"
+        MAJOR="${version_parts[0]}"
+        MINOR="${version_parts[1]}"
+        echo "major=$MAJOR" >> $GITHUB_OUTPUT
+        echo "minor=$MINOR" >> $GITHUB_OUTPUT
+        echo "Major: $MAJOR, Minor: $MINOR"
+        
+    - name: Extract tag name
+      id: tag
       run: |
-        echo ${GITHUB_REF:10}
-        echo "branch=${GITHUB_REF:10}" >> $GITHUB_OUTPUT
-    - name: Set up QEMU
-      if: contains(steps.check_credentials.outputs.missingsecrets, 'no')
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: amd64,arm64,arm
+        # Handle both tag push and manual workflow dispatch
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+        else
+          TAG_NAME="v${{ steps.version.outputs.version }}"
+        fi
+        echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+        echo "Tag: $TAG_NAME"
+        
     - name: Set up Docker Buildx
-      if: contains(steps.check_credentials.outputs.missingsecrets, 'no')
-      uses: docker/setup-buildx-action@v3
-      with:
-        version: latest
-    - name: Login to DockerHub Registry
-      if: contains(steps.check_credentials.outputs.missingsecrets, 'no')
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_USER }}
-        password: ${{ secrets.DOCKER_CLITOKEN }}
-        logout: true
+      uses: docker/setup-buildx-action@v3    
+      
     - name: Login to GitHub Container Registry
-      if: contains(steps.check_credentials.outputs.missingsecrets, 'no')
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
-        username: ${{ github.repository_owner }}
+        username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-        logout: true
-    - name: Update Version String
-      if: contains(steps.check_credentials.outputs.missingsecrets, 'no')
-      env:
-        OUROBOROS_VERSION: ${{ steps.build_env.outputs.branch }}
-      run: |
-        sed -i -r 's/VERSION = "custom"/VERSION = "'$OUROBOROS_VERSION'"/' pyouroboros/__init__.py
-        echo $?\
-    - name: Build and Push Docker
-      if: contains(steps.check_credentials.outputs.missingsecrets, 'no')
+        
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: Build and push release Docker images
       uses: docker/build-push-action@v6
       with:
+        push: true
         context: .
         file: ./Dockerfile
-        platforms: linux/amd64,linux/arm64,linux/arm/v7
-        push: true
-        cache-from: type=gha,scope=main
-        cache-to: type=gha,mode=max,scope=main
+        platforms: ${{ matrix.platform }}
+        #cache-from: type=gha,scope=linux-${{ matrix.arch }}
+        #cache-to: type=gha,scope=linux-${{ matrix.arch }},mode=max
+        cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:linux-${{ matrix.arch }}
+        cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/buildcache:linux-${{ matrix.arch }},mode=max
+
+        sbom: true
+        provenance: true
+        build-args: |
+          VERSION=${{ steps.version.outputs.version }}
+          VCS_REF=${{ github.sha }}
         tags: |
-          ${{ secrets.DOCKER_USER }}/ouroboros:${{ steps.build_env.outputs.branch }}
-          ${{ secrets.DOCKER_USER }}/ouroboros:latest
-          ghcr.io/${{ github.repository_owner }}/ouroboros:${{ steps.build_env.outputs.branch }}
-          ghcr.io/${{ github.repository_owner }}/ouroboros:latest
-  cleanup:
-    name: Cleanup Cache
+          ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-${{ matrix.arch }}
+          ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-${{ matrix.arch }}
+          
+  merge:
     runs-on: ubuntu-latest
-    needs: [test, build]
+    needs: build
     steps:
-    - name: Cleanup Cache
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Extract version
+      id: version
       run: |
-        gh extension install actions/gh-actions-cache
-        REPO="${{ github.repository }}"
-        BRANCH="${{ github.ref }}"
-        echo "Fetching list of cache keys"
-        cacheKeys=$(gh actions-cache list -R $REPO -B $BRANCH | cut -f 1 )
-        ## Setting this to not fail the workflow while deleting cache keys.
-        set +e
-        echo "Deleting caches..."
-        for cacheKey in $cacheKeys
-        do
-            gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
-        done
-        echo "Done"
+        # Extract version from tag or use provided version from workflow_dispatch
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          # Extract version from tag (e.g., v1.2.3 -> 1.2.3)
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG_NAME#v}
+        elif [ -n "${{ inputs.version }}" ]; then
+          VERSION="${{ inputs.version }}"
+        else
+          # Fallback: try to read from pyouroboros/__init__.py
+          VERSION=$(grep 'VERSION = "' pyouroboros/__init__.py | sed 's/.*VERSION = "\([^"]*\)".*/\1/' || echo "custom")
+          # Remove 'v' prefix if present
+          VERSION=${VERSION#v}
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+
+        # Extract major and minor versions for additional tags
+        IFS='.' read -r -a version_parts <<< "$VERSION"
+        MAJOR="${version_parts[0]}"
+        MINOR="${version_parts[1]}"
+        echo "major=$MAJOR" >> $GITHUB_OUTPUT
+        echo "minor=$MINOR" >> $GITHUB_OUTPUT
+        echo "Major: $MAJOR, Minor: $MINOR"
+        
+    - name: Extract tag name
+      id: tag
+      run: |
+        # Handle both tag push and manual workflow dispatch
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+        else
+          TAG_NAME="v${{ steps.version.outputs.version }}"
+        fi
+        echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+        echo "Tag: $TAG_NAME"
+      
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Create and push multi-arch manifests
+      run: |
+        # Docker Hub manifests
+        docker buildx imagetools create \
+          -t ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }} \
+          ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
+          ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-arm64
+        
+        docker buildx imagetools create \
+          -t ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:latest \
+          ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
+          ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-arm64
+        
+        docker buildx imagetools create \
+          -t ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }} \
+          ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
+          ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-arm64
+        
+        docker buildx imagetools create \
+          -t ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.major }} \
+          ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
+          ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-arm64
+        
+        # GHCR manifests
+        docker buildx imagetools create \
+          -t ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }} \
+          ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
+          ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-arm64
+        
+        docker buildx imagetools create \
+          -t ghcr.io/${{ github.repository }}/ouroboros:latest \
+          ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
+          ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-arm64
+        
+        docker buildx imagetools create \
+          -t ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }} \
+          ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
+          ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-arm64
+        
+        docker buildx imagetools create \
+          -t ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.major }} \
+          ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
+          ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-arm64
+
+    - name: Create GitHub release
+      run: |
+        gh release create v${{ steps.version.outputs.version }} \
+          --title "Release v${{ steps.version.outputs.version }}" \
+          --notes "Release v${{ steps.version.outputs.version }}
+
+        Built from tag: ${{ steps.tag.outputs.tag }}
+
+        Docker Images:
+        - \`${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}\`
+        - \`ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}\`" \
+          --latest
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
