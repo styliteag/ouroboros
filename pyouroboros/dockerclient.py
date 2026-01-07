@@ -306,6 +306,7 @@ class Container(BaseImageObject):
 
     def update(self):
         updated_count = 0
+        actually_updated = []
         try:
             updateable, depends_on_containers, hard_depends_on_containers = self.socket_check()
             mylocals = {}
@@ -395,6 +396,13 @@ class Container(BaseImageObject):
             self.data_manager.total_updated[self.socket] += 1
             self.data_manager.add(label=container.name, socket=self.socket)
             self.data_manager.add(label='all', socket=self.socket)
+            actually_updated.append((container.name, current_image, latest_image))
+
+            if self.config.single:
+                if self.config.single_wait > 0:
+                    self.logger.info('Waiting %d seconds before next update (single mode)', self.config.single_wait)
+                    sleep(self.config.single_wait)
+                break
 
         for container in depends_on_containers:
             # Reload container to ensure it isn't referencing the old image
@@ -417,7 +425,8 @@ class Container(BaseImageObject):
             run_hook('after_recreate_hard_depends_container', None, mylocals)
 
         if updated_count > 0:
-            self.notification_manager.send(container_tuples=updateable, socket=self.socket, kind='update')
+            notification_tuples = actually_updated if actually_updated else updateable
+            self.notification_manager.send(container_tuples=notification_tuples, socket=self.socket, kind='update')
 
     def update_self(self, count=None, old_container=None, me_list=None, new_image=None):
         if count == 2:
@@ -562,6 +571,12 @@ class Service(BaseImageObject):
                 self.data_manager.total_updated[self.socket] += 1
                 self.data_manager.add(label=service.name, socket=self.socket)
                 self.data_manager.add(label='all', socket=self.socket)
+
+                if self.config.single:
+                    if self.config.single_wait > 0:
+                        self.logger.info('Waiting %d seconds before next update (single mode)', self.config.single_wait)
+                        sleep(self.config.single_wait)
+                    break
 
         if updated_service_tuples:
             self.notification_manager.send(

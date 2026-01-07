@@ -9,7 +9,7 @@ class Config(object):
                'INFLUX_URL', 'INFLUX_PORT', 'INFLUX_USERNAME', 'INFLUX_PASSWORD', 'INFLUX_DATABASE', 'INFLUX_SSL',
                'INFLUX_VERIFY_SSL', 'DATA_EXPORT', 'SELF_UPDATE', 'LABEL_ENABLE', 'DOCKER_TLS', 'LABELS_ONLY',
                'DRY_RUN', 'MONITOR_ONLY', 'HOSTNAME', 'DOCKER_TLS_VERIFY', 'SWARM', 'SKIP_STARTUP_NOTIFICATIONS', 'LANGUAGE',
-               'TZ', 'CLEANUP_UNUSED_VOLUMES', 'DOCKER_TIMEOUT', 'LATEST_ONLY', 'SAVE_COUNTERS']
+               'TZ', 'CLEANUP_UNUSED_VOLUMES', 'DOCKER_TIMEOUT', 'LATEST_ONLY', 'SAVE_COUNTERS', 'SINGLE', 'SINGLE_WAIT']
 
     hostname = environ.get('HOSTNAME')
     interval = 300
@@ -56,6 +56,8 @@ class Config(object):
 
     notifiers = []
     skip_startup_notifications = False
+    single = False
+    single_wait = 0
 
     def __init__(self, environment_vars, cli_args):
         self.cli_args = cli_args
@@ -95,7 +97,7 @@ class Config(object):
                 if isinstance(env_opt, str):
                     # Clean out quotes, both single/double and whitespace
                     env_opt = env_opt.strip("'").strip('"').strip(' ')
-                if option in ['INTERVAL', 'GRACE', 'PROMETHEUS_PORT', 'INFLUX_PORT', 'DOCKER_TIMEOUT']:
+                if option in ['INTERVAL', 'GRACE', 'PROMETHEUS_PORT', 'INFLUX_PORT', 'DOCKER_TIMEOUT', 'SINGLE_WAIT']:
                     try:
                         opt = int(env_opt)
                         setattr(self, option.lower(), opt)
@@ -103,7 +105,7 @@ class Config(object):
                         print(e)
                 elif option in ['CLEANUP', 'RUN_ONCE', 'INFLUX_SSL', 'INFLUX_VERIFY_SSL', 'DRY_RUN', 'MONITOR_ONLY', 'SWARM',
                                 'SELF_UPDATE', 'LABEL_ENABLE', 'DOCKER_TLS', 'LABELS_ONLY', 'DOCKER_TLS_VERIFY',
-                                'SKIP_STARTUP_NOTIFICATIONS', 'CLEANUP_UNUSED_VOLUMES', 'LATEST_ONLY']:
+                                'SKIP_STARTUP_NOTIFICATIONS', 'CLEANUP_UNUSED_VOLUMES', 'LATEST_ONLY', 'SINGLE']:
                     if env_opt.lower() in ['true', 'yes']:
                         setattr(self, option.lower(), True)
                     elif env_opt.lower() in ['false', 'no']:
