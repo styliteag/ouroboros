@@ -580,7 +580,17 @@ class Service(BaseImageObject):
                                                    socket=self.socket, kind='update', mode='service')
 
                 self.logger.info('%s will be updated', service.name)
-                service.update(image=f"{tag}@sha256:{latest_image_sha256}")
+                try:
+                    # Reload service to get latest version before updating
+                    service.reload()
+                    service.update(image=f"{tag}@sha256:{latest_image_sha256}")
+                except APIError as e:
+                    if 'update out of sequence' in str(e):
+                        self.logger.warning('Service %s was updated by another process. Skipping this update cycle.', service.name)
+                        continue
+                    else:
+                        self.logger.error('Failed to update service %s: %s', service.name, e)
+                        continue
 
                 self.data_manager.total_updated[self.socket] += 1
                 self.data_manager.add(label=service.name, socket=self.socket)
