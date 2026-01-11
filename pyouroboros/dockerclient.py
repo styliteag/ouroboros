@@ -410,9 +410,8 @@ class Container(BaseImageObject):
                 if updated_count > 0 and container.name not in ['ouroboros', 'ouroboros-updated']:
                     notification_tuples = actually_updated if actually_updated else updateable
                     self.notification_manager.send(container_tuples=notification_tuples, socket=self.socket, kind='update')
-                # Recursively call update to process next container immediately
-                self.update()
-                return
+                # Continue with next container in current scan cycle
+                continue
 
         for container in depends_on_containers:
             # Reload container to ensure it isn't referencing the old image
@@ -608,9 +607,8 @@ class Service(BaseImageObject):
                             kind='update',
                             mode='service'
                         )
-                    # Recursively call update to process next service immediately
-                    self.update()
-                    return
+                    # Continue with next service in current scan cycle
+                    continue
 
         if updated_service_tuples:
             self.notification_manager.send(
