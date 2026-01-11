@@ -406,7 +406,13 @@ class Container(BaseImageObject):
                 if self.config.single_wait > 0:
                     self.logger.info('Waiting %d seconds before next update (single mode)', self.config.single_wait)
                     sleep(self.config.single_wait)
-                break
+                # Send notifications for this update before processing next (skip if already sent for self-update)
+                if updated_count > 0 and container.name not in ['ouroboros', 'ouroboros-updated']:
+                    notification_tuples = actually_updated if actually_updated else updateable
+                    self.notification_manager.send(container_tuples=notification_tuples, socket=self.socket, kind='update')
+                # Recursively call update to process next container immediately
+                self.update()
+                return
 
         for container in depends_on_containers:
             # Reload container to ensure it isn't referencing the old image
@@ -584,7 +590,17 @@ class Service(BaseImageObject):
                     if self.config.single_wait > 0:
                         self.logger.info('Waiting %d seconds before next update (single mode)', self.config.single_wait)
                         sleep(self.config.single_wait)
-                    break
+                    # Send notifications for this update before processing next (skip if already sent for self-update)
+                    if updated_service_tuples and not ('ouroboros' in service.name and self.config.self_update):
+                        self.notification_manager.send(
+                            container_tuples=updated_service_tuples,
+                            socket=self.socket,
+                            kind='update',
+                            mode='service'
+                        )
+                    # Recursively call update to process next service immediately
+                    self.update()
+                    return
 
         if updated_service_tuples:
             self.notification_manager.send(
