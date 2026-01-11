@@ -119,6 +119,8 @@ def get_digest(image) -> str:
     """
     Utility to locate the digest of an image and return it
     """
+    if image is None:
+        raise ValueError("Cannot get digest from None image")
     digest = image.attrs.get(
             "Descriptor", {}
         ).get("digest") or image.attrs.get(

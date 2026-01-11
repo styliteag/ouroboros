@@ -269,6 +269,10 @@ class Container(BaseImageObject):
             except ConnectionError:
                 continue
 
+            if latest_image is None:
+                self.logger.error('Failed to pull image %s for container %s. Skipping', current_tag, container.name)
+                continue
+
             try:
                 if current_image.id != latest_image.id:
                     updateable.append((container, current_image, latest_image))
@@ -533,6 +537,10 @@ class Service(BaseImageObject):
                 if latest_image is None:
                     latest_image = self.pull(tag)
             except ConnectionError:
+                continue
+
+            if latest_image is None:
+                self.logger.error('Failed to pull image %s. Skipping', tag)
                 continue
 
             latest_image_sha256 = get_digest(latest_image)
