@@ -3,18 +3,7 @@ name: Release Docker Build
 on:
   push:
     tags:
-      - 'v*.*.*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (optional, defaults to tag or pyouroboros/__init__.py)'
-        required: false
-        type: string
-      push_to_dockerhub:
-        description: 'Push images to Docker Hub (optional, defaults to false)'
-        required: false
-        type: boolean
-        default: false
+      - '*'
 
 jobs:
   build:
@@ -35,19 +24,9 @@ jobs:
     - name: Extract version
       id: version
       run: |
-        # Extract version from tag or use provided version from workflow_dispatch
-        if [[ $GITHUB_REF == refs/tags/* ]]; then
-          # Extract version from tag (e.g., v1.2.3 -> 1.2.3)
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          VERSION=${TAG_NAME#v}
-        elif [ -n "${{ inputs.version }}" ]; then
-          VERSION="${{ inputs.version }}"
-        else
-          # Fallback: try to read from pyouroboros/__init__.py
-          VERSION=$(grep 'VERSION = "' pyouroboros/__init__.py | sed 's/.*VERSION = "\([^"]*\)".*/\1/' || echo "custom")
-          # Remove 'v' prefix if present
-          VERSION=${VERSION#v}
-        fi
+        # Extract version from tag (e.g., v1.2.3 -> 1.2.3)
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        VERSION=${TAG_NAME#v}
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
 
@@ -62,12 +41,7 @@ jobs:
     - name: Extract tag name
       id: tag
       run: |
-        # Handle both tag push and manual workflow dispatch
-        if [[ $GITHUB_REF == refs/tags/* ]]; then
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-        else
-          TAG_NAME="v${{ steps.version.outputs.version }}"
-        fi
+        TAG_NAME=${GITHUB_REF#refs/tags/}
         echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
         echo "Tag: $TAG_NAME"
         
@@ -81,24 +55,10 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
         
-    - name: Login to Docker Hub
-      if: ${{ inputs.push_to_dockerhub == true }}
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-        
     - name: Prepare Docker tags
       id: tags
       run: |
-        TAGS="ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-${{ matrix.arch }}"
-        if [ "${{ inputs.push_to_dockerhub }}" == "true" ]; then
-          TAGS="$TAGS
-        ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-${{ matrix.arch }}"
-        fi
-        echo "tags<<EOF" >> $GITHUB_OUTPUT
-        echo "$TAGS" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        echo "tags=ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
         
     - name: Build and push release Docker images
       uses: docker/build-push-action@v6
@@ -129,19 +89,9 @@ jobs:
     - name: Extract version
       id: version
       run: |
-        # Extract version from tag or use provided version from workflow_dispatch
-        if [[ $GITHUB_REF == refs/tags/* ]]; then
-          # Extract version from tag (e.g., v1.2.3 -> 1.2.3)
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          VERSION=${TAG_NAME#v}
-        elif [ -n "${{ inputs.version }}" ]; then
-          VERSION="${{ inputs.version }}"
-        else
-          # Fallback: try to read from pyouroboros/__init__.py
-          VERSION=$(grep 'VERSION = "' pyouroboros/__init__.py | sed 's/.*VERSION = "\([^"]*\)".*/\1/' || echo "custom")
-          # Remove 'v' prefix if present
-          VERSION=${VERSION#v}
-        fi
+        # Extract version from tag (e.g., v1.2.3 -> 1.2.3)
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        VERSION=${TAG_NAME#v}
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
 
@@ -156,22 +106,10 @@ jobs:
     - name: Extract tag name
       id: tag
       run: |
-        # Handle both tag push and manual workflow dispatch
-        if [[ $GITHUB_REF == refs/tags/* ]]; then
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-        else
-          TAG_NAME="v${{ steps.version.outputs.version }}"
-        fi
+        TAG_NAME=${GITHUB_REF#refs/tags/}
         echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
         echo "Tag: $TAG_NAME"
       
-    - name: Login to Docker Hub
-      if: ${{ inputs.push_to_dockerhub == true }}
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-        
     - name: Login to GitHub Container Registry
       uses: docker/login-action@v3
       with:
@@ -201,44 +139,20 @@ jobs:
           -t ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.major }} \
           ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
           ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-arm64
-          
-        ## Docker Hub manifests (only if push_to_dockerhub is enabled)
-        if [ "${{ inputs.push_to_dockerhub }}" == "true" ]; then
-          docker buildx imagetools create \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-arm64
-          
-          docker buildx imagetools create \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:latest \
-            ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-arm64
-          
-          docker buildx imagetools create \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-arm64
-          
-          docker buildx imagetools create \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.major }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-amd64 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}-arm64
-        fi
 
     - name: Create GitHub release
       run: |
-        NOTES="Release v${{ steps.version.outputs.version }}
+        NOTES="Release ${{ steps.tag.outputs.tag }}
 
         Built from tag: ${{ steps.tag.outputs.tag }}
 
         Docker Images:
-        - \`ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}\`"
-        if [ "${{ inputs.push_to_dockerhub }}" == "true" ]; then
-          NOTES="$NOTES
-        - \`${{ secrets.DOCKERHUB_USERNAME }}/ouroboros:${{ steps.version.outputs.version }}\`"
-        fi
-        gh release create v${{ steps.version.outputs.version }} \
-          --title "Release v${{ steps.version.outputs.version }}" \
+        - \`ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}\`
+        - \`ghcr.io/${{ github.repository }}/ouroboros:latest\`
+        - \`ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}\`
+        - \`ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.major }}\`"
+        gh release create ${{ steps.tag.outputs.tag }} \
+          --title "Release ${{ steps.tag.outputs.tag }}" \
           --notes "$NOTES" \
           --latest
       env:

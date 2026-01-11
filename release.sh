@@ -1,13 +1,13 @@
 #!/bin/bash
 # Release script for Ouroboros
-# Usage: ./release.sh <version> [--push-to-dockerhub]
+# Usage: ./release.sh <version>
 # Example: ./release.sh 1.10.1
 
 set -e
 
 VERSION=$1
 if [ -z "$VERSION" ]; then
-    echo "Usage: $0 <version> [--push-to-dockerhub]"
+    echo "Usage: $0 <version>"
     echo "Example: $0 1.10.1"
     exit 1
 fi
@@ -77,6 +77,3 @@ echo "The GitHub Actions workflow will automatically:"
 echo "  - Build multi-arch Docker images (amd64, arm64)"
 echo "  - Push to GHCR: ghcr.io/styliteag/ouroboros:${VERSION}"
 echo "  - Create a GitHub release"
-echo ""
-echo "To also push to Docker Hub, use the workflow_dispatch in GitHub Actions"
-echo "and enable 'push_to_dockerhub' option."
