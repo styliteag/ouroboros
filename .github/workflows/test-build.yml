@@ -1,13 +1,18 @@
 name: Test Build
 
+# Workflow disabled
 on:
-  push:
-  pull_request:
   workflow_dispatch:
+    inputs:
+      enabled:
+        description: 'Workflow is disabled'
+        required: false
+        default: 'false'
 
 jobs:
   test:
     name: Docker Test on ubuntu-latest
+    if: false  # Workflow disabled
     runs-on: ubuntu-latest
     services:
       registry:

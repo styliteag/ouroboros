@@ -86,26 +86,46 @@ fi
 git add pyouroboros/__init__.py
 git commit -m "Bump version to v${VERSION}"
 
-# Create and push tag
+# Create tag
 echo "Creating tag v${VERSION}..."
 git tag -a "v${VERSION}" -m "Release v${VERSION}"
 
-# Fetch remote tags to sync (handles any conflicts)
-echo "Syncing tags with remote..."
-git fetch --tags --force
-
+# Ask if user wants to push
 echo ""
-echo "✅ Release v${VERSION} prepared!"
-echo ""
-echo "Next steps:"
-echo "  1. Review the changes: git show HEAD"
-echo "  2. Push the commit: git push"
-echo "  3. Push the tag: git push origin v${VERSION}"
-if git ls-remote --tags origin "v${VERSION}" | grep -q "v${VERSION}"; then
-    echo "     (or force push if overwriting: git push -f origin v${VERSION})"
+read -p "Push commit and tag to remote? (Y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Nn]$ ]]; then
+    echo ""
+    echo "✅ Release v${VERSION} prepared locally!"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Review the changes: git show HEAD"
+    echo "  2. Push the commit: git push"
+    echo "  3. Push the tag: git push origin v${VERSION}"
+    if git ls-remote --tags origin "v${VERSION}" | grep -q "v${VERSION}"; then
+        echo "     (or force push if overwriting: git push -f origin v${VERSION})"
+    fi
+else
+    # Push commit
+    echo "Pushing commit..."
+    git push
+    
+    # Push tag (force if overwriting)
+    echo "Pushing tag v${VERSION}..."
+    if git ls-remote --tags origin "v${VERSION}" | grep -q "v${VERSION}"; then
+        echo "Tag exists on remote, force pushing..."
+        git push -f origin "v${VERSION}"
+    else
+        git push origin "v${VERSION}"
+    fi
+    
+    echo ""
+    echo "✅ Release v${VERSION} pushed!"
+    echo ""
+    echo "The GitHub Actions workflow will automatically:"
+    echo "  - Build multi-arch Docker images (amd64, arm64)"
+    echo "  - Push to GHCR: ghcr.io/styliteag/ouroboros:${VERSION}"
+    echo "  - Create a GitHub release"
+    echo ""
+    echo "Monitor the workflow at: https://github.com/styliteag/ouroboros/actions"
 fi
-echo ""
-echo "The GitHub Actions workflow will automatically:"
-echo "  - Build multi-arch Docker images (amd64, arm64)"
-echo "  - Push to GHCR: ghcr.io/styliteag/ouroboros:${VERSION}"
-echo "  - Create a GitHub release"
