@@ -23,6 +23,31 @@ fi
 
 echo "Preparing release v${VERSION}..."
 
+# Check if tag already exists locally
+if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+    echo "⚠️  WARNING: Tag v${VERSION} already exists locally"
+    read -p "Delete local tag and continue? (y/N) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        git tag -d "v${VERSION}"
+        echo "Local tag deleted."
+    else
+        echo "Release cancelled."
+        exit 1
+    fi
+fi
+
+# Check if tag exists on remote
+if git ls-remote --tags origin "v${VERSION}" | grep -q "v${VERSION}"; then
+    echo "⚠️  WARNING: Tag v${VERSION} already exists on remote"
+    read -p "This will overwrite the remote tag. Continue? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Release cancelled."
+        exit 1
+    fi
+fi
+
 # Update version in __init__.py
 echo "Updating version in pyouroboros/__init__.py..."
 sed -i.bak "s/VERSION = \".*\"/VERSION = \"${VERSION}\"/" pyouroboros/__init__.py
@@ -65,6 +90,10 @@ git commit -m "Bump version to v${VERSION}"
 echo "Creating tag v${VERSION}..."
 git tag -a "v${VERSION}" -m "Release v${VERSION}"
 
+# Fetch remote tags to sync (handles any conflicts)
+echo "Syncing tags with remote..."
+git fetch --tags --force
+
 echo ""
 echo "✅ Release v${VERSION} prepared!"
 echo ""
@@ -72,6 +101,9 @@ echo "Next steps:"
 echo "  1. Review the changes: git show HEAD"
 echo "  2. Push the commit: git push"
 echo "  3. Push the tag: git push origin v${VERSION}"
+if git ls-remote --tags origin "v${VERSION}" | grep -q "v${VERSION}"; then
+    echo "     (or force push if overwriting: git push -f origin v${VERSION})"
+fi
 echo ""
 echo "The GitHub Actions workflow will automatically:"
 echo "  - Build multi-arch Docker images (amd64, arm64)"
