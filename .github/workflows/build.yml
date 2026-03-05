@@ -61,7 +61,7 @@ jobs:
         echo "tags=ghcr.io/${{ github.repository }}/ouroboros:${{ steps.version.outputs.version }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
         
     - name: Build and push release Docker images
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         push: true
         context: .
