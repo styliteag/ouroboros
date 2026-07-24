@@ -72,20 +72,21 @@ sent to that one registry; both mechanisms can be combined.
 ### Minimum image age
 
 To avoid updating to a freshly published (possibly broken) image, set
-`MIN_IMAGE_AGE` (seconds). New images younger than this are deferred
-until a later cycle:
+`MIN_IMAGE_AGE`. New images younger than this are deferred until a
+later cycle. Values are plain seconds or durations with `s/m/h/d/w`
+suffixes (combinable: `1d 8h`, `8h30m`):
 
 ```bash
-MIN_IMAGE_AGE=86400              # only update to images >= 1 day old
-MIN_IMAGE_AGE_ONLY="web1 web2"   # optional whitelist: gate only these
-MIN_IMAGE_AGE_IGNORE="critical"  # optional blacklist: never gate these
+MIN_IMAGE_AGE=1d                 # only update to images >= 1 day old
+MIN_IMAGE_AGE_ONLY="web1 web2"   # optional whitelist: gate only these (container/service names)
+MIN_IMAGE_AGE_IGNORE="critical"  # optional blacklist: never gate these (container/service names)
 ```
 
 Per container/service override via label (takes precedence, `0` disables):
 
 ```yaml
 labels:
-  - com.ouroboros.min_image_age=604800
+  - com.ouroboros.min_image_age=1w
 ```
 
 Note: not enforced in `--dry-run` mode (registry metadata carries no

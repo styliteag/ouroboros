@@ -175,9 +175,10 @@ def main():
                               help='Wait time in seconds after updating a service/container when --single is enabled\n'
                                    'DEFAULT: 0')
 
-    docker_group.add_argument('--min-image-age', type=int, default=Config.min_image_age, dest='MIN_IMAGE_AGE',
-                              help='Only update to images that are at least this many seconds old\n'
-                                   '(e.g. 86400 for one day). 0 disables the check\n'
+    docker_group.add_argument('--min-image-age', default=Config.min_image_age, dest='MIN_IMAGE_AGE',
+                              help='Only update to images that are at least this old.\n'
+                                   'Plain seconds or s/m/h/d/w suffixes, also combined\n'
+                                   '(e.g. 86400, 1d, 8h30m, "1d 8h", 4w). 0 disables the check\n'
                                    'DEFAULT: 0')
 
     docker_group.add_argument('--min-image-age-only', nargs='+', default=Config.min_image_age_only,

@@ -71,10 +71,11 @@ Ouroboros is an automated Docker container update agent that monitors running co
      - Gets current image tag and digest
      - Pulls latest image from registry (with auth if configured)
      - Compares image IDs/digests
-     - Checks the minimum image age gate (`MIN_IMAGE_AGE`, e.g. 86400 = new image
-       must be at least one day old). Scope via `MIN_IMAGE_AGE_ONLY` (whitelist) /
-       `MIN_IMAGE_AGE_IGNORE` (blacklist); per-container override with the
-       `com.ouroboros.min_image_age` label (seconds, `0` disables; label wins over lists).
+     - Checks the minimum image age gate (`MIN_IMAGE_AGE`, seconds or s/m/h/d/w
+       durations like `1d`, `8h30m`, `4w` = new image must be at least that old).
+       Scope via `MIN_IMAGE_AGE_ONLY` (whitelist) / `MIN_IMAGE_AGE_IGNORE`
+       (blacklist) with container/service names; per-container override with the
+       `com.ouroboros.min_image_age` label (`0` disables; label wins over lists).
        Not enforced in dry-run mode (registry data has no Created timestamp)
      - If different and old enough, marks container for update
 

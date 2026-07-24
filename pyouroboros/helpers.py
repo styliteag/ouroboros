@@ -3,7 +3,7 @@ from inspect import getframeinfo, currentframe
 from logging import getLogger
 from os.path import dirname, abspath
 from pathlib import Path
-from re import match as re_match
+from re import match as re_match, fullmatch, findall
 
 def get_exec_dir() -> str:
     """
@@ -129,6 +129,21 @@ def get_digest(image) -> str:
     return remove_sha_prefix(digest)
 
 
+def parse_duration(value) -> int:
+    """
+    Parse a duration into seconds. Accepts plain seconds ('86400') or
+    unit suffixes s/m/h/d/w, also combined: '1d', '8h30m', '1d 8h', '4w'.
+    Raises ValueError on invalid input
+    """
+    duration = str(value).strip().lower()
+    if duration.isdigit():
+        return int(duration)
+    if not fullmatch(r'(\s*\d+\s*[smhdw])+\s*', duration):
+        raise ValueError(f"Invalid duration: '{value}'")
+    units = {'s': 1, 'm': 60, 'h': 3600, 'd': 86400, 'w': 604800}
+    return sum(int(num) * units[unit] for num, unit in findall(r'(\d+)\s*([smhdw])', duration))
+
+
 def get_image_age(image):
     """
     Age of an image in seconds based on its Created timestamp.
@@ -152,7 +167,7 @@ def get_min_image_age(config, name, labels, logger):
     label = labels.get('com.ouroboros.min_image_age')
     if label is not None:
         try:
-            return int(label)
+            return parse_duration(label)
         except ValueError:
             logger.error('Invalid com.ouroboros.min_image_age label %s on %s. Using global value', label, name)
     if config.min_image_age_only:

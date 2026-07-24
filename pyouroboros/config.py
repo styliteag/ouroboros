@@ -1,5 +1,6 @@
 from os import environ
 from logging import getLogger
+from pyouroboros.helpers import parse_duration
 from pyouroboros.logger import BlacklistFilter
 
 
@@ -102,8 +103,7 @@ class Config(object):
                 if isinstance(env_opt, str):
                     # Clean out quotes, both single/double and whitespace
                     env_opt = env_opt.strip("'").strip('"').strip(' ')
-                if option in ['INTERVAL', 'GRACE', 'PROMETHEUS_PORT', 'INFLUX_PORT', 'DOCKER_TIMEOUT', 'SINGLE_WAIT',
-                              'MIN_IMAGE_AGE']:
+                if option in ['INTERVAL', 'GRACE', 'PROMETHEUS_PORT', 'INFLUX_PORT', 'DOCKER_TIMEOUT', 'SINGLE_WAIT']:
                     try:
                         opt = int(env_opt)
                         setattr(self, option.lower(), opt)
@@ -125,6 +125,13 @@ class Config(object):
                 setattr(self, option.lower(), vars(self.cli_args).get(option))
 
         # Specific var changes
+        if isinstance(self.min_image_age, str):
+            try:
+                self.min_image_age = parse_duration(self.min_image_age)
+            except ValueError:
+                self.logger.error('Invalid MIN_IMAGE_AGE %s. Disabling minimum image age', self.min_image_age)
+                self.min_image_age = 0
+
 
         if self.interval < 30:
             self.interval = 30
