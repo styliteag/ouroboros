@@ -94,6 +94,12 @@ class BaseImageObject(object):
             return False
         return True
 
+    def pull_cached(self, tag, cache):
+        """Pull a tag once per scan cycle; later lookups for the same tag reuse the result"""
+        if tag not in cache:
+            cache[tag] = self._pull(tag)
+        return cache[tag]
+
     def _pull(self, tag):
         """Docker pull image tag"""
         self.logger.debug('Checking tag: %s', tag)
@@ -265,6 +271,7 @@ class Container(BaseImageObject):
         depends_on_names = []
         hard_depends_on_names = []
         updateable = []
+        pulled = {}
         self.monitored = self.monitor_filter()
 
         if not self.monitored:
@@ -279,13 +286,13 @@ class Container(BaseImageObject):
             if self.config.latest_only:
                 image_name = current_tag.split(':')[0]
                 try:
-                    latest_image = self.pull(f"{image_name}:latest")
+                    latest_image = self.pull_cached(f"{image_name}:latest", pulled)
                 except ConnectionError:
                     latest_image = None
 
             try:
                 if latest_image is None:
-                    latest_image = self.pull(current_tag)
+                    latest_image = self.pull_cached(current_tag, pulled)
             except ConnectionError as e:
                 self.logger.debug("Connection error while pulling image %s: %s", current_tag, e)
                 continue
@@ -534,6 +541,7 @@ class Service(BaseImageObject):
 
     def update(self):
         updated_service_tuples = []
+        pulled = {}
         self.monitored = self.monitor_filter()
 
         if not self.monitored:
@@ -561,13 +569,13 @@ class Service(BaseImageObject):
             if self.config.latest_only:
                 image_name = tag.split(':')[0]
                 try:
-                    latest_image = self.pull(f"{image_name}:latest")
+                    latest_image = self.pull_cached(f"{image_name}:latest", pulled)
                 except ConnectionError:
                     latest_image = None
 
             try:
                 if latest_image is None:
-                    latest_image = self.pull(tag)
+                    latest_image = self.pull_cached(tag, pulled)
             except ConnectionError:
                 continue
 
