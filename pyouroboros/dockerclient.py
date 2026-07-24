@@ -308,7 +308,7 @@ class Container(BaseImageObject):
         return updateable, depends_on_containers, hard_depends_on_containers
 
     def update(self):
-        updated_count = 0
+        actually_updated = []
         try:
             updateable, depends_on_containers, hard_depends_on_containers = self.socket_check()
             mylocals = {}
@@ -391,13 +391,12 @@ class Container(BaseImageObject):
                     except APIError as e:
                         self.logger.error("Could not delete unused volume for %s, Error: %s", container.name, e)
 
-            updated_count += 1
-
             self.logger.debug("Incrementing total container updated count")
 
             self.data_manager.total_updated[self.socket] += 1
             self.data_manager.add(label=container.name, socket=self.socket)
             self.data_manager.add(label='all', socket=self.socket)
+            actually_updated.append((container, current_image, latest_image))
 
             if self.config.single and self.config.single_wait > 0:
                 self.logger.info('Waiting %d seconds before next update (single mode)', self.config.single_wait)
@@ -423,8 +422,8 @@ class Container(BaseImageObject):
                 mylocals['new_container'] = container
             run_hook('after_recreate_hard_depends_container', None, mylocals)
 
-        if updated_count > 0:
-            self.notification_manager.send(container_tuples=updateable, socket=self.socket, kind='update')
+        if actually_updated:
+            self.notification_manager.send(container_tuples=actually_updated, socket=self.socket, kind='update')
 
     def update_self(self, count=None, old_container=None, me_list=None, new_image=None):
         if count == 2:
@@ -569,15 +568,13 @@ class Service(BaseImageObject):
                     )
                     continue
 
-                updated_service_tuples.append(
-                    (service, sha256[-10:], latest_image)
-                )
+                current_tuple = (service, sha256[-10:], latest_image)
 
                 if 'ouroboros' in service.name and self.config.self_update:
                     self.data_manager.total_updated[self.socket] += 1
                     self.data_manager.add(label=service.name, socket=self.socket)
                     self.data_manager.add(label='all', socket=self.socket)
-                    self.notification_manager.send(container_tuples=updated_service_tuples,
+                    self.notification_manager.send(container_tuples=updated_service_tuples + [current_tuple],
                                                    socket=self.socket, kind='update', mode='service')
 
                 self.logger.info('%s will be updated', service.name)
@@ -593,6 +590,7 @@ class Service(BaseImageObject):
                         self.logger.error('Failed to update service %s: %s', service.name, e)
                         continue
 
+                updated_service_tuples.append(current_tuple)
                 self.data_manager.total_updated[self.socket] += 1
                 self.data_manager.add(label=service.name, socket=self.socket)
                 self.data_manager.add(label='all', socket=self.socket)
