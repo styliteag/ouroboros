@@ -86,13 +86,9 @@ class BaseImageObject(object):
                 self.logger.debug("Docker api issue. Ignoring")
                 raise ConnectionError
             elif 'unauthorized' in str(e):
-                if self.config.dry_run:
-                    self.logger.error('dry run : Upstream authentication issue while checking %s. See: '
-                                      'https://github.com/docker/docker-py/issues/2225', tag)
-                    raise ConnectionError
-                else:
-                    self.logger.critical("Invalid Credentials. Exiting")
-                    exit(1)
+                self.logger.error("Registry denied authentication for %s. Check credentials. Skipping. Error: %s",
+                                  tag, e)
+                raise ConnectionError
             elif 'Client.Timeout' in str(e):
                 self.logger.critical(
                     "Couldn't find an image on docker.com for %s. Local Build?", tag)
