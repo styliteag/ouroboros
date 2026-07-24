@@ -598,7 +598,9 @@ class Service(BaseImageObject):
                 if self.config.monitor_only:
                     # Ugly hack for repo digest
                     self.notification_manager.send(
-                        container_tuples=[(service, sha256[-10], latest_image)],
+                        # [-10:], not [-10] — the monitor-mode notification
+                        # showed a single digest CHARACTER as the old version.
+                        container_tuples=[(service, sha256[-10:], latest_image)],
                         socket=self.socket,
                         kind='monitor',
                         mode='service'
