@@ -270,7 +270,11 @@ class Container(BaseImageObject):
                 self.logger.debug("Connection error while pulling image %s: %s", current_tag, e)
                 continue
 
-            self.logger.debug('%s: current_image=%s, latest_image=%s', container.name, current_image.id, latest_image.id if latest_image is not None else "None")
+            if latest_image is None:
+                self.logger.error('Failed to pull image %s for container %s. Skipping', current_tag, container.name)
+                continue
+
+            self.logger.debug('%s: current_image=%s, latest_image=%s', container.name, current_image.id, latest_image.id)
 
             try:
                 if current_image.id != latest_image.id:
@@ -534,6 +538,10 @@ class Service(BaseImageObject):
                 if latest_image is None:
                     latest_image = self.pull(tag)
             except ConnectionError:
+                continue
+
+            if latest_image is None:
+                self.logger.error('Failed to pull image %s. Skipping', tag)
                 continue
 
             latest_image_sha256 = get_digest(latest_image)
