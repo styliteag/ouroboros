@@ -1,5 +1,11 @@
 # Change Log
 
+## [Unreleased]
+
+**Implemented enhancements:**
+
+- Minimum image age gate: `MIN_IMAGE_AGE` (seconds) defers updates until the new image is old enough (e.g. 86400 for one day); scope with `MIN_IMAGE_AGE_ONLY` / `MIN_IMAGE_AGE_IGNORE` or override per container/service with the `com.ouroboros.min_image_age` label
+
 ## [v1.11.7](https://github.com/styliteag/ouroboros/tree/v1.11.7) (2026-07-24)
 
 **Implemented enhancements:**
