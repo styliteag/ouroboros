@@ -86,18 +86,14 @@ class BaseImageObject(object):
                 self.logger.debug("Docker api issue. Ignoring")
                 raise ConnectionError
             elif 'unauthorized' in str(e):
-                if self.config.dry_run:
-                    self.logger.error('dry run : Upstream authentication issue while checking %s. See: '
-                                      'https://github.com/docker/docker-py/issues/2225', tag)
-                    raise ConnectionError
-                else:
-                    self.logger.critical("Invalid Credentials. Exiting")
-                    exit(1)
+                self.logger.error("Registry denied authentication for %s. Check credentials. Skipping. Error: %s",
+                                  tag, e)
+                raise ConnectionError
             elif 'Client.Timeout' in str(e):
                 self.logger.critical(
                     "Couldn't find an image on docker.com for %s. Local Build?", tag)
                 raise ConnectionError
-            elif ('pull access' or 'TLS handshake') in str(e):
+            else:
                 self.logger.critical("Couldn't pull. Skipping. Error: %s", e)
                 raise ConnectionError
 
@@ -270,7 +266,11 @@ class Container(BaseImageObject):
                 self.logger.debug("Connection error while pulling image %s: %s", current_tag, e)
                 continue
 
-            self.logger.debug('%s: current_image=%s, latest_image=%s', container.name, current_image.id, latest_image.id if latest_image is not None else "None")
+            if latest_image is None:
+                self.logger.error('Failed to pull image %s for container %s. Skipping', current_tag, container.name)
+                continue
+
+            self.logger.debug('%s: current_image=%s, latest_image=%s', container.name, current_image.id, latest_image.id)
 
             try:
                 if current_image.id != latest_image.id:
@@ -534,6 +534,10 @@ class Service(BaseImageObject):
                 if latest_image is None:
                     latest_image = self.pull(tag)
             except ConnectionError:
+                continue
+
+            if latest_image is None:
+                self.logger.error('Failed to pull image %s. Skipping', tag)
                 continue
 
             latest_image_sha256 = get_digest(latest_image)
