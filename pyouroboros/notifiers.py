@@ -43,6 +43,26 @@ class NotificationManager(object):
 
         return apprise_obj
 
+    def _update_line(self, container, old_image, new_image):
+        """One 'name (image:tag) updated from A to B' body line.
+
+        The tag comes from the freshly pulled image (e.g.
+        'ghcr.io/org/app:1.8.12') — the digests alone made it impossible to
+        tell WHAT was rolled out. In service mode the tuple carries
+        (service, old-digest-string, Image); in container mode both image
+        slots are Image objects.
+        """
+        # Some call sites pass the container object, one (container
+        # monitor-mode) passes its name string — .name on that crashed the
+        # whole notification before any line was built.
+        name = getattr(container, 'name', container)
+        tags = getattr(new_image, 'tags', None) or []
+        image_label = ' (%s)' % tags[0] if tags else ''
+        old_short = old_image if isinstance(old_image, str) else old_image.short_id.split(':')[1]
+        return self._("{}{} updated from {} to {}").format(
+            name, image_label, old_short, new_image.short_id.split(':')[1]
+        )
+
     def send(self, container_tuples=None, socket=None, kind='update', next_run=None, mode='container'):
         if kind == 'startup':
             title = self._('Ouroboros has started')
@@ -58,13 +78,7 @@ class NotificationManager(object):
                 self._('Total Containers Updated: %d') % self.data_manager.total_updated[socket]
             ]
             body_fields.extend(
-                [
-                    self._("{} updated from {} to {}").format(
-                        container.name,
-                        old_image if mode == 'service' else old_image.short_id.split(':')[1],
-                        new_image.short_id.split(':')[1]
-                    ) for container, old_image, new_image in container_tuples
-                ]
+                [self._update_line(c, o, n) for c, o, n in container_tuples]
             )
         else:
             title = self._('Ouroboros has updated containers!')
@@ -75,13 +89,7 @@ class NotificationManager(object):
                 self._('Containers updated this pass: %d') % len(container_tuples)
             ]
             body_fields.extend(
-                [
-                    self._("{} updated from {} to {}").format(
-                        container.name,
-                        old_image if mode == 'service' else old_image.short_id.split(':')[1],
-                        new_image.short_id.split(':')[1]
-                    ) for container, old_image, new_image in container_tuples
-                ]
+                [self._update_line(c, o, n) for c, o, n in container_tuples]
             )
         body = '\r\n'.join(body_fields)
 

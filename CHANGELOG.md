@@ -1,5 +1,16 @@
 # Change Log
 
+## [v1.11.10](https://github.com/styliteag/ouroboros/tree/v1.11.10) (2026-07-24)
+
+**Implemented enhancements:**
+
+- Update notifications now name the image and tag, not just the digests: `stylite-dash_orbit (ghcr.io/styliteag/dashboard-pro:4.2.27) updated from d159d0a95b to 7e01a9ed7cb5`
+
+**Fixed bugs:**
+
+- Swarm monitor-only notifications showed a single digest character as the old version (`sha256[-10]` instead of `sha256[-10:]`)
+- Container monitor-only notifications crashed while building the message (`.name` on an already-stringified container name), so they were never delivered
+
 ## [v1.11.9](https://github.com/styliteag/ouroboros/tree/v1.11.9) (2026-07-24)
 
 **Fixed bugs:**
