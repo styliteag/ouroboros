@@ -1,5 +1,5 @@
 
-<img width="800" src="https://raw.githubusercontent.com/gmt2001/ouroboros/main/assets/ouroboros_logo_primary_long_cropped.jpg" alt="Ouroboros Logo">
+<img width="800" src="https://raw.githubusercontent.com/styliteag/ouroboros/main/assets/ouroboros_logo_primary_long_cropped.jpg" alt="Ouroboros Logo">
 
 Automatically update your running Docker containers to the latest available image.
 
@@ -29,7 +29,7 @@ Ouroboros is deployed via docker image like so:
 ```bash
 docker run -d --name ouroboros \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  ghcr.io/gmt2001/ouroboros
+  ghcr.io/styliteag/ouroboros
 ```
 
 > This image is compatible with amd64, arm64, and arm/v7 CPU architectures
