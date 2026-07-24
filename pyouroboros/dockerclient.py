@@ -516,7 +516,13 @@ class Service(BaseImageObject):
             if '@' in image_string:
                 sha256 = remove_sha_prefix(image_string.split('@')[1])
             else:
-                sha256 = remove_sha_prefix(self.client.images.get(tag).attrs['RepoDigests'][0])
+                try:
+                    sha256 = remove_sha_prefix(self.client.images.get(tag).attrs['RepoDigests'][0])
+                except (NotFound, IndexError):
+                    self.logger.warning('Cannot determine current digest for service %s: image %s is not '
+                                        'available locally. Skipping. Hint: deploy the service with an '
+                                        'image digest (image@sha256:...)', service.name, tag)
+                    continue
             if len(sha256) == 0:
                 self.logger.error('No image SHA for %s. Skipping', image_string)
                 continue
@@ -571,7 +577,17 @@ class Service(BaseImageObject):
                                                    socket=self.socket, kind='update', mode='service')
 
                 self.logger.info('%s will be updated', service.name)
-                service.update(image=f"{tag}@sha256:{latest_image_sha256}")
+                try:
+                    # Reload service to get latest version before updating
+                    service.reload()
+                    service.update(image=f"{tag}@sha256:{latest_image_sha256}")
+                except APIError as e:
+                    if 'update out of sequence' in str(e):
+                        self.logger.warning('Service %s was updated by another process. Skipping this update cycle.', service.name)
+                        continue
+                    else:
+                        self.logger.error('Failed to update service %s: %s', service.name, e)
+                        continue
 
                 self.data_manager.total_updated[self.socket] += 1
                 self.data_manager.add(label=service.name, socket=self.socket)
