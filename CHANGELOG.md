@@ -1,6 +1,6 @@
 # Change Log
 
-## [Unreleased]
+## [v1.11.9](https://github.com/styliteag/ouroboros/tree/v1.11.9) (2026-07-24)
 
 **Fixed bugs:**
 
