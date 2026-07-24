@@ -1,5 +1,13 @@
 FROM python:3.14.5-alpine
 
+ARG VERSION=custom
+ARG VCS_REF=unknown
+LABEL org.opencontainers.image.version=$VERSION \
+      org.opencontainers.image.revision=$VCS_REF \
+      org.opencontainers.image.title="ouroboros" \
+      org.opencontainers.image.description="Automatically update running docker containers" \
+      org.opencontainers.image.source="https://github.com/styliteag/ouroboros"
+
 ENV TZ=UTC
 
 WORKDIR /app
