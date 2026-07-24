@@ -38,6 +38,37 @@ or via `docker-compose`:
 
 [Official Example](docker-compose.yml)
 
+### Private registries / multiple logins
+
+Ouroboros resolves registry credentials per registry, the same way
+`docker login` does. The recommended setup is mounting a docker
+`config.json` with one entry per registry:
+
+```bash
+docker run -d --name ouroboros \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v ~/.docker/config.json:/root/.docker/config.json:ro \
+  ghcr.io/styliteag/ouroboros
+```
+
+```json
+{
+    "auths": {
+        "ghcr.io": {"auth": "<base64 user:token>"},
+        "https://index.docker.io/v1/": {"auth": "<base64 user:pass>"},
+        "my.private.registry": {"auth": "<base64 user:pass>"}
+    }
+}
+```
+
+This works for standalone containers, swarm services and dry-run
+checks. Registries without an entry (e.g. public Docker Hub images)
+are pulled anonymously.
+
+Alternatively, for a single registry, set `REPO_USER`, `REPO_PASS`
+and `REPO_REGISTRY` (default `docker.io`). The credentials are only
+sent to that one registry; both mechanisms can be combined.
+
 ## Examples
 Per-command and scenario examples can be found in the [wiki](https://github.com/gmt2001/ouroboros/wiki/Usage)
 

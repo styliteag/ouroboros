@@ -2,8 +2,16 @@
 
 ## [Unreleased]
 
+**Implemented enhancements:**
+
+- Per-registry credentials: a mounted docker `config.json` now works for containers, swarm services and dry-run checks; `REPO_USER`/`REPO_PASS` are scoped to the new `REPO_REGISTRY` option (default `docker.io`) instead of being sent to every registry
+
 **Fixed bugs:**
 
+- Setting registry credentials no longer breaks pulls from other registries (e.g. GHCR credentials previously made public Docker Hub checks fail)
+- Swarm service updates now authenticate against private registries via the client auth config (X-Registry-Auth)
+- An authentication error from one registry no longer terminates ouroboros with exit(1); the affected image is skipped
+- Dry-run and monitor-only modes authenticate registry checks (outdated docker-py workaround removed)
 - Raise ConnectionError for all unhandled image pull errors: the previous `('pull access' or 'TLS handshake')` check only matched 'pull access', so errors like TLS handshake timeouts made pull() return None instead of skipping cleanly
 - Send one summary notification per scan cycle listing only containers/services that were actually updated (previously each update in single mode sent a notification containing all pending updates)
 - Skip containers and services when the image pull fails instead of crashing the scan cycle
