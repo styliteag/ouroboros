@@ -10,7 +10,7 @@ class Config(object):
                'INFLUX_VERIFY_SSL', 'DATA_EXPORT', 'SELF_UPDATE', 'LABEL_ENABLE', 'DOCKER_TLS', 'LABELS_ONLY',
                'DRY_RUN', 'MONITOR_ONLY', 'HOSTNAME', 'DOCKER_TLS_VERIFY', 'SWARM', 'SKIP_STARTUP_NOTIFICATIONS', 'LANGUAGE',
                'TZ', 'CLEANUP_UNUSED_VOLUMES', 'DOCKER_TIMEOUT', 'LATEST_ONLY', 'SAVE_COUNTERS', 'SINGLE', 'SINGLE_WAIT',
-               'REPO_REGISTRY']
+               'REPO_REGISTRY', 'MIN_IMAGE_AGE', 'MIN_IMAGE_AGE_ONLY', 'MIN_IMAGE_AGE_IGNORE']
 
     hostname = environ.get('HOSTNAME')
     interval = 300
@@ -60,6 +60,10 @@ class Config(object):
     single = False
     single_wait = 0
 
+    min_image_age = 0
+    min_image_age_only = []
+    min_image_age_ignore = []
+
     def __init__(self, environment_vars, cli_args):
         self.cli_args = cli_args
         self.environment_vars = environment_vars
@@ -98,7 +102,8 @@ class Config(object):
                 if isinstance(env_opt, str):
                     # Clean out quotes, both single/double and whitespace
                     env_opt = env_opt.strip("'").strip('"').strip(' ')
-                if option in ['INTERVAL', 'GRACE', 'PROMETHEUS_PORT', 'INFLUX_PORT', 'DOCKER_TIMEOUT', 'SINGLE_WAIT']:
+                if option in ['INTERVAL', 'GRACE', 'PROMETHEUS_PORT', 'INFLUX_PORT', 'DOCKER_TIMEOUT', 'SINGLE_WAIT',
+                              'MIN_IMAGE_AGE']:
                     try:
                         opt = int(env_opt)
                         setattr(self, option.lower(), opt)
@@ -130,7 +135,8 @@ class Config(object):
         if self.labels_only and not self.label_enable:
             self.logger.warning('labels_only enabled but not in use without label_enable')
 
-        for option in ['docker_sockets', 'notifiers', 'monitor', 'ignore']:
+        for option in ['docker_sockets', 'notifiers', 'monitor', 'ignore', 'min_image_age_only',
+                       'min_image_age_ignore']:
             if isinstance(getattr(self, option), str):
                 string_list = getattr(self, option)
                 setattr(self, option, [string for string in string_list.split(' ')])

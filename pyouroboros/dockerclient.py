@@ -4,7 +4,8 @@ from docker import DockerClient, tls
 from os.path import isdir, isfile, join
 from docker.errors import DockerException, APIError, NotFound
 
-from pyouroboros.helpers import set_properties, remove_sha_prefix, get_digest, run_hook
+from pyouroboros.helpers import set_properties, remove_sha_prefix, get_digest, run_hook, get_image_age, \
+    get_min_image_age
 
 
 class Docker(object):
@@ -77,6 +78,21 @@ class BaseImageObject(object):
         self.data_manager = self.docker.data_manager
         self.data_manager.total_updated[self.socket] = 0
         self.notification_manager = self.docker.notification_manager
+
+    def image_age_ok(self, name, labels, latest_image):
+        """Check whether the new image satisfies the effective minimum age"""
+        min_age = get_min_image_age(self.config, name, labels, self.logger)
+        if min_age <= 0:
+            return True
+        age = get_image_age(latest_image)
+        if age is None:
+            self.logger.debug('Cannot determine age of new image for %s. Ignoring minimum age', name)
+            return True
+        if age < min_age:
+            self.logger.info('New image for %s is %d seconds old (minimum %d). Deferring update',
+                             name, age, min_age)
+            return False
+        return True
 
     def _pull(self, tag):
         """Docker pull image tag"""
@@ -282,6 +298,8 @@ class Container(BaseImageObject):
 
             try:
                 if current_image.id != latest_image.id:
+                    if not self.image_age_ok(container.name, container.labels, latest_image):
+                        continue
                     updateable.append((container, current_image, latest_image))
                 else:
                     continue
@@ -555,6 +573,9 @@ class Service(BaseImageObject):
             self.logger.debug('Latest sha256 for %s is %s', tag, latest_image_sha256)
 
             if sha256 != latest_image_sha256:
+                if not self.image_age_ok(service.name, service.attrs['Spec'].get('Labels') or {}, latest_image):
+                    continue
+
                 if self.config.dry_run:
                     # Ugly hack for repo digest
                     self.logger.info('dry run : %s would be updated', service.name)

@@ -1,7 +1,9 @@
+from datetime import datetime, timezone
 from inspect import getframeinfo, currentframe
 from logging import getLogger
 from os.path import dirname, abspath
 from pathlib import Path
+from re import match as re_match
 
 def get_exec_dir() -> str:
     """
@@ -125,3 +127,36 @@ def get_digest(image) -> str:
             "RepoDigests"
         )[0].split('@')[1] or image.id
     return remove_sha_prefix(digest)
+
+
+def get_image_age(image):
+    """
+    Age of an image in seconds based on its Created timestamp.
+    Returns None if the timestamp is unavailable (e.g. registry data in dry-run mode)
+    """
+    created = getattr(image, 'attrs', {}).get('Created')
+    if not created:
+        return None
+    matched = re_match(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})', str(created))
+    if not matched:
+        return None
+    created_dt = datetime.strptime(matched.group(1), '%Y-%m-%dT%H:%M:%S').replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - created_dt).total_seconds()
+
+
+def get_min_image_age(config, name, labels, logger):
+    """
+    Effective minimum image age in seconds for a container/service.
+    Precedence: com.ouroboros.min_image_age label > only/ignore lists > global MIN_IMAGE_AGE
+    """
+    label = labels.get('com.ouroboros.min_image_age')
+    if label is not None:
+        try:
+            return int(label)
+        except ValueError:
+            logger.error('Invalid com.ouroboros.min_image_age label %s on %s. Using global value', label, name)
+    if config.min_image_age_only:
+        return config.min_image_age if name in config.min_image_age_only else 0
+    if name in config.min_image_age_ignore:
+        return 0
+    return config.min_image_age
