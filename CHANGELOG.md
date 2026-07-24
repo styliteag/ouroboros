@@ -1,5 +1,39 @@
 # Change Log
 
+## [v1.12.0](https://github.com/styliteag/ouroboros/tree/v1.12.0) (2026-07-24)
+
+**Implemented enhancements:**
+
+- Per-registry credentials: a mounted docker `config.json` now works for containers, swarm services and dry-run checks; `REPO_USER`/`REPO_PASS` are scoped to the new `REPO_REGISTRY` option (default `docker.io`) instead of being sent to every registry
+- Minimum image age gate: `MIN_IMAGE_AGE` defers updates until the new image is old enough; accepts seconds or s/m/h/d/w durations (`86400`, `1d`, `8h30m`, `4w`); scope with `MIN_IMAGE_AGE_ONLY` / `MIN_IMAGE_AGE_IGNORE` (container/service names) or override per container/service with the `com.ouroboros.min_image_age` label
+- Update notifications name the image and tag and show real release versions when the image carries `org.opencontainers.image.version` or `org.label-schema.version` labels: `web (nginx:latest) updated from 1.31.2 to 1.31.3` (digests shown as before when labels are missing)
+- The ouroboros image itself now sets OCI labels (version, revision, source), so self-updates report proper versions too
+
+**Fixed bugs:**
+
+- Setting registry credentials no longer breaks pulls from other registries (e.g. GHCR credentials previously made public Docker Hub checks fail); swarm service updates authenticate via the client auth config (X-Registry-Auth)
+- An authentication error from one registry no longer terminates ouroboros with exit(1); robust pull error handling skips the affected image on None results, TLS handshake timeouts and any other unhandled pull error
+- Swarm: 'update out of sequence' is handled by reloading the service first; services whose current digest cannot be determined locally are skipped with a warning instead of crashing the whole scan cycle
+- One summary notification per scan cycle listing only containers/services that were actually updated; monitor-only notifications fixed (swarm digest slice, container name crash)
+- Each image tag is pulled only once per scan cycle (less registry traffic, fewer rate-limit hits)
+
+## [v1.10.0](https://github.com/styliteag/ouroboros/tree/v1.10.0) (2026-01-07)
+
+**Note:** This is a fork of [gmt2001/ouroboros](https://github.com/gmt2001/ouroboros)
+
+**Implemented enhancements:**
+
+- Added `--single` flag to update only one service/container at a time, allowing for controlled rollouts and reduced system load
+- Added `--single-wait` option to specify wait time in seconds after updating a service/container when `--single` is enabled, ensuring services have time to stabilize before the next update
+
+**Fixed bugs:**
+
+- Fix Docker build: convert 'custom' version to valid PEP 440 format for local builds
+
+**Other changes:**
+
+- Update maintainer and repository information
+
 ## [v1.9.0](https://github.com/gmt2001/ouroboros/tree/v1.9.0) (2021-09-20)
 [Full Changelog](https://github.com/gmt2001/ouroboros/compare/1.9.0...v1.8.0)
 
