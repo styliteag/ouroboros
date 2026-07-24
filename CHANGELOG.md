@@ -4,6 +4,7 @@
 
 **Fixed bugs:**
 
+- Raise ConnectionError for all unhandled image pull errors: the previous `('pull access' or 'TLS handshake')` check only matched 'pull access', so errors like TLS handshake timeouts made pull() return None instead of skipping cleanly
 - Send one summary notification per scan cycle listing only containers/services that were actually updated (previously each update in single mode sent a notification containing all pending updates)
 - Skip containers and services when the image pull fails instead of crashing the scan cycle
 - Handle 'update out of sequence' error in Swarm mode by reloading the service before updating and skipping concurrently updated services

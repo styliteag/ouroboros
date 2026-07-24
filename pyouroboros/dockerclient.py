@@ -97,7 +97,7 @@ class BaseImageObject(object):
                 self.logger.critical(
                     "Couldn't find an image on docker.com for %s. Local Build?", tag)
                 raise ConnectionError
-            elif ('pull access' or 'TLS handshake') in str(e):
+            else:
                 self.logger.critical("Couldn't pull. Skipping. Error: %s", e)
                 raise ConnectionError
 
