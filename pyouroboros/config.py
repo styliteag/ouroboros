@@ -1,5 +1,6 @@
 from os import environ
 from logging import getLogger
+from pyouroboros.helpers import parse_duration
 from pyouroboros.logger import BlacklistFilter
 
 
@@ -10,7 +11,7 @@ class Config(object):
                'INFLUX_VERIFY_SSL', 'DATA_EXPORT', 'SELF_UPDATE', 'LABEL_ENABLE', 'DOCKER_TLS', 'LABELS_ONLY',
                'DRY_RUN', 'MONITOR_ONLY', 'HOSTNAME', 'DOCKER_TLS_VERIFY', 'SWARM', 'SKIP_STARTUP_NOTIFICATIONS', 'LANGUAGE',
                'TZ', 'CLEANUP_UNUSED_VOLUMES', 'DOCKER_TIMEOUT', 'LATEST_ONLY', 'SAVE_COUNTERS', 'SINGLE', 'SINGLE_WAIT',
-               'REPO_REGISTRY']
+               'REPO_REGISTRY', 'MIN_IMAGE_AGE', 'MIN_IMAGE_AGE_ONLY', 'MIN_IMAGE_AGE_IGNORE']
 
     hostname = environ.get('HOSTNAME')
     interval = 300
@@ -59,6 +60,10 @@ class Config(object):
     skip_startup_notifications = False
     single = False
     single_wait = 0
+
+    min_image_age = 0
+    min_image_age_only = []
+    min_image_age_ignore = []
 
     def __init__(self, environment_vars, cli_args):
         self.cli_args = cli_args
@@ -120,6 +125,13 @@ class Config(object):
                 setattr(self, option.lower(), vars(self.cli_args).get(option))
 
         # Specific var changes
+        if isinstance(self.min_image_age, str):
+            try:
+                self.min_image_age = parse_duration(self.min_image_age)
+            except ValueError:
+                self.logger.error('Invalid MIN_IMAGE_AGE %s. Disabling minimum image age', self.min_image_age)
+                self.min_image_age = 0
+
 
         if self.interval < 30:
             self.interval = 30
@@ -130,7 +142,8 @@ class Config(object):
         if self.labels_only and not self.label_enable:
             self.logger.warning('labels_only enabled but not in use without label_enable')
 
-        for option in ['docker_sockets', 'notifiers', 'monitor', 'ignore']:
+        for option in ['docker_sockets', 'notifiers', 'monitor', 'ignore', 'min_image_age_only',
+                       'min_image_age_ignore']:
             if isinstance(getattr(self, option), str):
                 string_list = getattr(self, option)
                 setattr(self, option, [string for string in string_list.split(' ')])
