@@ -16,3 +16,5 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /app/pyouroboros/hooks:/app/pyouroboros/hooks
+      # Per-registry credentials (docker.io, ghcr.io, private registries):
+      # - ~/.docker/config.json:/root/.docker/config.json:ro

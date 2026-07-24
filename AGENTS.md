@@ -168,7 +168,12 @@ When `--swarm` is enabled:
 
 ### Security
 - Docker TLS support with certificate verification
-- Private registry authentication
+- Private registry authentication, resolved per registry:
+  - Recommended: mount a docker `config.json` (`-v ~/.docker/config.json:/root/.docker/config.json:ro`)
+    with one `auths` entry per registry — works for containers, swarm services (X-Registry-Auth)
+    and dry-run checks
+  - Alternative for a single registry: `REPO_USER`/`REPO_PASS` scoped via `REPO_REGISTRY`
+    (default `docker.io`); credentials are only sent to that registry
 - Sensitive data filtering in logs
 - Network isolation support
 
