@@ -194,3 +194,5 @@ dmypy.json
 .idea/
 *.iml
 
+config.json
+CLAUDE.md
