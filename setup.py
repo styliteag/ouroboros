@@ -13,9 +13,13 @@ def get_requirements(filename="requirements.txt"):
     return list(filter(None, [req.strip() for req in requirements.split() if not req.startswith('#')]))
 
 
+# Convert "custom" to a valid PEP 440 version for local builds
+version = VERSION if VERSION != "custom" else "0.0.0.dev0"
+
+
 setup(
     name='ouroboros-cli',
-    version=VERSION,
+    version=version,
     author='circa10a',
     author_email='wb@stylite.de',
     maintainer='styliteag',
