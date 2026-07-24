@@ -52,6 +52,18 @@ class Docker(object):
         else:
             client = DockerClient(base_url=self.socket, timeout=self.config.docker_timeout)
 
+        if self.config.repo_user and self.config.repo_pass:
+            registry = self.config.repo_registry
+            if registry in ('docker.io', 'index.docker.io'):
+                registry = 'https://index.docker.io/v1/'
+            # Register credentials on the client, scoped to one registry, so
+            # pulls and swarm service updates resolve them like docker login
+            client.api._auth_configs.add_auth(registry, {
+                'username': self.config.repo_user,
+                'password': self.config.repo_pass,
+                'serveraddress': registry,
+            })
+
         return client
 
 
@@ -70,16 +82,12 @@ class BaseImageObject(object):
         """Docker pull image tag"""
         self.logger.debug('Checking tag: %s', tag)
         try:
+            # Credentials resolve per registry from the client's auth config
+            # (mounted docker config.json and/or REPO_USER/REPO_PASS/REPO_REGISTRY)
             if self.config.dry_run:
-                # The authentication doesn't work with this call
-                # See bugs https://github.com/docker/docker-py/issues/2225
                 return self.client.images.get_registry_data(tag)
             else:
-                if self.config.auth_json:
-                    return_image = self.client.images.pull(tag, auth_config=self.config.auth_json)
-                else:
-                    return_image = self.client.images.pull(tag)
-                return return_image
+                return self.client.images.pull(tag)
         except APIError as e:
             self.logger.debug(str(e))
             if '<html>' in str(e):

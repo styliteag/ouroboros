@@ -117,6 +117,13 @@ def main():
                               help='Private docker registry password\n'
                                    'EXAMPLE: MyPa$$w0rd')
 
+    docker_group.add_argument('--repo-registry', default=Config.repo_registry, dest='REPO_REGISTRY',
+                              help='Registry the REPO_USER/REPO_PASS credentials belong to.\n'
+                                   'Credentials are only sent to this registry; all other\n'
+                                   'registries resolve from a mounted docker config.json\n'
+                                   'DEFAULT: docker.io\n'
+                                   'EXAMPLE: ghcr.io')
+
     data_group = parser.add_argument_group('Data Export', 'Configuration of data export functionality')
     data_group.add_argument('-sc', '--save-counters', default=Config.save_counters, dest='SAVE_COUNTERS',
                             action='store_true', help='Save total-updated counters across self-updates')

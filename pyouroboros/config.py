@@ -9,7 +9,8 @@ class Config(object):
                'INFLUX_URL', 'INFLUX_PORT', 'INFLUX_USERNAME', 'INFLUX_PASSWORD', 'INFLUX_DATABASE', 'INFLUX_SSL',
                'INFLUX_VERIFY_SSL', 'DATA_EXPORT', 'SELF_UPDATE', 'LABEL_ENABLE', 'DOCKER_TLS', 'LABELS_ONLY',
                'DRY_RUN', 'MONITOR_ONLY', 'HOSTNAME', 'DOCKER_TLS_VERIFY', 'SWARM', 'SKIP_STARTUP_NOTIFICATIONS', 'LANGUAGE',
-               'TZ', 'CLEANUP_UNUSED_VOLUMES', 'DOCKER_TIMEOUT', 'LATEST_ONLY', 'SAVE_COUNTERS', 'SINGLE', 'SINGLE_WAIT']
+               'TZ', 'CLEANUP_UNUSED_VOLUMES', 'DOCKER_TIMEOUT', 'LATEST_ONLY', 'SAVE_COUNTERS', 'SINGLE', 'SINGLE_WAIT',
+               'REPO_REGISTRY']
 
     hostname = environ.get('HOSTNAME')
     interval = 300
@@ -40,7 +41,7 @@ class Config(object):
 
     repo_user = None
     repo_pass = None
-    auth_json = None
+    repo_registry = 'docker.io'
 
     prometheus = False
     prometheus_addr = '127.0.0.1'
@@ -119,8 +120,6 @@ class Config(object):
                 setattr(self, option.lower(), vars(self.cli_args).get(option))
 
         # Specific var changes
-        if self.repo_user and self.repo_pass:
-            self.auth_json = {'Username': self.repo_user, 'Password': self.repo_pass}
 
         if self.interval < 30:
             self.interval = 30
