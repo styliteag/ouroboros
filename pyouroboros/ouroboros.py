@@ -161,6 +161,13 @@ def main():
                               dest='SKIP_STARTUP_NOTIFICATIONS', action='store_true',
                               help='Do not send ouroboros notifications when starting')
 
+    docker_group.add_argument('--single', default=Config.single, dest='SINGLE', action='store_true',
+                              help='Only update one service/container at a time')
+
+    docker_group.add_argument('--single-wait', type=int, default=Config.single_wait, dest='SINGLE_WAIT',
+                              help='Wait time in seconds after updating a service/container when --single is enabled\n'
+                                   'DEFAULT: 0')
+
     _ = None
     args = parser.parse_args()
 

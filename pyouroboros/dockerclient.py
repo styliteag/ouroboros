@@ -403,6 +403,10 @@ class Container(BaseImageObject):
             self.data_manager.add(label=container.name, socket=self.socket)
             self.data_manager.add(label='all', socket=self.socket)
 
+            if self.config.single and self.config.single_wait > 0:
+                self.logger.info('Waiting %d seconds before next update (single mode)', self.config.single_wait)
+                sleep(self.config.single_wait)
+
         for container in depends_on_containers:
             # Reload container to ensure it isn't referencing the old image
             mylocals = {}
@@ -590,6 +594,10 @@ class Service(BaseImageObject):
                 self.data_manager.total_updated[self.socket] += 1
                 self.data_manager.add(label=service.name, socket=self.socket)
                 self.data_manager.add(label='all', socket=self.socket)
+
+                if self.config.single and self.config.single_wait > 0:
+                    self.logger.info('Waiting %d seconds before next update (single mode)', self.config.single_wait)
+                    sleep(self.config.single_wait)
 
         if updated_service_tuples:
             self.notification_manager.send(
