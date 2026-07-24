@@ -1,5 +1,12 @@
 # Change Log
 
+## [Unreleased]
+
+**Implemented enhancements:**
+
+- Update notifications show real release versions when the image carries `org.opencontainers.image.version` or `org.label-schema.version` labels: `web (nginx:latest) updated from 1.31.2 to 1.31.3` (digest shown as before when labels are missing)
+- The ouroboros image itself now sets OCI labels (version, revision, source), so self-updates report proper versions too
+
 ## [v1.11.10](https://github.com/styliteag/ouroboros/tree/v1.11.10) (2026-07-24)
 
 **Implemented enhancements:**
