@@ -1,5 +1,12 @@
 # Change Log
 
+## [Unreleased]
+
+**Fixed bugs:**
+
+- Swarm: a service whose image is not available locally (deployed without an image digest) no longer crashes the whole scan cycle with ImageNotFound; the service is skipped with a warning
+- Pull each image tag only once per scan cycle instead of once per container/service using it (less registry traffic, fewer rate-limit hits)
+
 ## [v1.11.8](https://github.com/styliteag/ouroboros/tree/v1.11.8) (2026-07-24)
 
 **Implemented enhancements:**
